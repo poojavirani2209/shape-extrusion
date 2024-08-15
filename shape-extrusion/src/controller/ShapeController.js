@@ -2,21 +2,25 @@ import ShapeModel from "../model/ShapeModel.js";
 
 class ShapeController {
   constructor(operation) {
-    this.operation = operation
+    this.operation = operation;
   }
 
   setMode(mode) {
     this.operation = mode;
   }
 
-  startDrawing(point) {
+  updateShapePoints(point) {
     ShapeModel.addPointToShape(point);
+    return ShapeModel.currentShapePoints;
+  }
+
+  getCurrentShapePoints(){
+    return ShapeModel.currentShapePoints;
   }
 
   finishDrawing() {
     ShapeModel.finishShape();
   }
-
 
   extrudeShape(index, height) {
     ShapeModel.extrudeShape(index, height);
