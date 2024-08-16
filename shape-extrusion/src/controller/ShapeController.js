@@ -1,12 +1,12 @@
 import ShapeModel from "../model/ShapeModel.js";
 
+/**
+ * This is the controller of shape modification. Only this class should directly access the data.
+ * The view part communicated with controller, and controller gets the specific data and performs operations on the data.
+ */
 class ShapeController {
   constructor(operation) {
     this.operation = operation;
-  }
-
-  setMode(mode) {
-    this.operation = mode;
   }
 
   updateShapePoints(point) {
@@ -14,24 +14,12 @@ class ShapeController {
     return ShapeModel.currentShapePoints;
   }
 
-  getCurrentShapePoints(){
+  getCurrentShapePoints() {
     return ShapeModel.currentShape.points;
   }
 
   finishDrawing() {
     ShapeModel.finishShape();
-  }
-
-  extrudeShape(index, height) {
-    ShapeModel.extrudeShape(index, height);
-  }
-
-  moveShape(index, offset) {
-    ShapeModel.moveShape(index, offset);
-  }
-
-  editVertex(vertexIndex, newPosition) {
-    ShapeModel.editVertex(vertexIndex, newPosition);
   }
 }
 

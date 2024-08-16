@@ -1,8 +1,13 @@
 import * as BABYLON from "babylonjs";
-import ShapeController from "./ShapeController";
-import ShapeModel from "../model/ShapeModel";
 import earcut from "earcut";
 
+/**
+ * This is a service class, providing service of rendering 2D and 3D objects and allows to interact with them.
+ * It has the logic, and the caller has to call the methods of this class for performing operations.
+ *
+ * This ensures separation of concern by adding a wrapper over the framework used.
+ * If a better framework comes based on our requirement, the updation will mostly be required in this class only.
+ */
 export class RenderingEngine {
   canvas;
   scene;
@@ -15,6 +20,7 @@ export class RenderingEngine {
   zIndexes;
 
   constructor() {
+    //initialize parameters of rendering engine.
     this.canvas = null;
     this.scene = null;
     this.engine = null;
@@ -23,27 +29,32 @@ export class RenderingEngine {
     this.advancedTexture = null;
   }
 
+  /** Method to create a 3D scene with a plane ground.  */
   initializeScene() {
     if (!this.canvas) return; //babylon canvas is not created yet.
 
-    this.engine = new BABYLON.Engine(this.canvas, true);
-    this.scene = new BABYLON.Scene(this.engine);
+    this.engine = new BABYLON.Engine(this.canvas, true); //engine that handles all the rendering in the canvas
+    this.scene = new BABYLON.Scene(this.engine); //scene to render in
     this.scene.clearColor = new BABYLON.Color3(0.5, 0.5, 0.5);
 
     if (this.scene.isReady()) {
       this.onSceneReady(this.scene);
     } else {
       this.scene.onReadyObservable.addOnce((scene) => {
+        //event listener for whenever the scene is ready.
         this.scene = scene;
         this.onSceneReady();
       });
     }
 
+    //Starts a render loop that repeatedly calls the provided callback function at each frame of the animation.
+    //This loop is necessary to continuously update and render the 3D scene
     this.engine.runRenderLoop(() => {
       this.scene.render();
     });
   }
 
+  /** Method to initialize the scene once ready with engine to handle the rendering, camera to view the scene, the light to make all the meshes visible*/
   onSceneReady() {
     // This creates and positions a free camera (non-mesh)
     this.camera = new BABYLON.FreeCamera(
@@ -54,8 +65,6 @@ export class RenderingEngine {
     this.camera.setTarget(BABYLON.Vector3.Zero()); // This targets the camera to scene origin
     this.camera.attachControl(this.canvas, true); // This attaches the camera to the canvas
 
-    this.canvas = this.scene.getEngine().getRenderingCanvas();
-
     // This creates a light, aiming 0,1,0 - to the sky (non-mesh)
     const light = new BABYLON.HemisphericLight(
       "light",
@@ -65,25 +74,30 @@ export class RenderingEngine {
     light.intensity = 0.8; // Default intensity is 1. This is done to dim the light
 
     BABYLON.MeshBuilder.CreateGround(
+      //Creates a ground mesh, with specified width and height to fir in the scene.
       "ground",
       { width: 10, height: 10 },
       this.scene
     );
 
-    // Create AxesViewer
+    //Shows the 3 plane axis over ground, for user to understand.
     new BABYLON.AxesViewer(this.scene, 3);
   }
 
   resizeEngine() {
-    //(this.engine);
     this.engine.resize();
   }
 
   disposeEngine() {
-    this.engine.dispose();
+    this.engine.dispose(); //Cleanup engine.
   }
 
-  createLines(points) {
+  /** Method to create edges between the vertices, in the order they come in. The second parameter is to define if to create a closed shape from the points by joining the first and last point.*/
+  createLines(vertices, closeLoop) {
+    let points = vertices;
+    if (closeLoop) {
+      points = [...points, vertices[0]];
+    }
     BABYLON.MeshBuilder.CreateLines("line", { points }, this.scene);
   }
 
@@ -98,11 +112,11 @@ export class RenderingEngine {
     return null;
   }
 
-  extrudeShape(points) {
+  extrudeShape(vertices) {
     this.extrudedShape = BABYLON.MeshBuilder.ExtrudePolygon(
       `extruded Polygon`,
       {
-        shape: points,
+        shape: vertices,
         depth: 1,
         sideOrientation: BABYLON.Mesh.DOUBLESIDE,
         updatable: true,
@@ -116,7 +130,7 @@ export class RenderingEngine {
     this.extrudedShape.convertToFlatShadedMesh();
 
     const material = new BABYLON.StandardMaterial("material", this.scene);
-    material.diffuseColor = new BABYLON.Color3(1, 0, 0); // Red color     // Set the color (using a diffuse color)
+    material.diffuseColor = new BABYLON.Color3(1, 0, 0); // Red color, set the color (using a diffuse color)
     this.extrudedShape.material = material; // Apply the material to the extruded mesh
   }
 
@@ -233,7 +247,7 @@ export class RenderingEngine {
       closestVertex = current;
 
       var positions = this.extrudedShape.getVerticesData(
-       BABYLON. VertexBuffer.PositionKind
+        BABYLON.VertexBuffer.PositionKind
       );
       var indices = this.currentPickedMesh.getIndices();
 
