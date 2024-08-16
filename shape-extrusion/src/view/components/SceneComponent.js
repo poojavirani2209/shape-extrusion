@@ -1,23 +1,34 @@
 import React, { useEffect, useRef } from "react";
-import ShapeModel from "../../model/ShapeModel";
 import ShapeController from "../../controller/ShapeController";
 import * as BABYLON from "babylonjs";
 import { RenderingEngine } from "../../controller/RenderingEngineSevice";
 
-export function SceneComponent({ operation, ...rest }) {
+export function SceneComponent({ operation }) {
   const reactCanvas = useRef(null);
   let renderingEngineRf = useRef(null);
-  let sceneRef = useRef(null);
-  let extrudedRef = useRef(null);
+
+  const handlePointerDown = () => {
+    if (operation == "draw") {
+      let pointClicked = renderingEngineRf.current.getClickedPoint();
+      let shapePoints = ShapeController.updateShapePoints(pointClicked);
+      renderingEngineRf.current.createLines(shapePoints);
+    }
+  };
+
+  const handlePointerUp = () => {
+    if (operation === "draw") {
+      ShapeController.finishDrawing();
+      reactCanvas.current.removeEventListener("click", handlePointerDown);
+      reactCanvas.current.removeEventListener("contextmenu", handlePointerUp);
+    }
+  };
 
   useEffect(() => {
-    if(!renderingEngineRf.current)
-    {
+    if (!renderingEngineRf.current) {
       renderingEngineRf.current = new RenderingEngine();
     }
     renderingEngineRf.current.canvas = reactCanvas.current;
     renderingEngineRf.current.initializeScene();
-    console.log(renderingEngineRf.current.engine);
     // window.addEventListener('resize', (renderingEngineRf.resizeEngine));
     return () => {
       // window.removeEventListener('resize', renderingEngineRf.resizeEngine);
@@ -26,97 +37,76 @@ export function SceneComponent({ operation, ...rest }) {
   }, []);
 
   useEffect(() => {
-    const handlePointerDown = (evt) => {
-      let pointClicked = renderingEngineRf.current.getClickedPoint();
-      let shapePoints = ShapeController.updateShapePoints(pointClicked);
-      renderingEngineRf.current.createLines(shapePoints);
-    };
-
-    const handlePointerUp = () => {
-      if (operation === "draw") {
-        console.log("pointer up");
-        ShapeController.finishDrawing();
-      }
-    };
-
-    if (operation == "draw") {
-      // Attach event listeners
-      renderingEngineRf.current.canvas.addEventListener("click", handlePointerDown);
-      renderingEngineRf.current.canvas.addEventListener("contextmenu", handlePointerUp);
-    } else if (operation == "extrude") {
-      renderingEngineRf.current.extrudeShape();
-    } else if (operation == "move") {
-      // Variables for dragging
-      let isDragging = false;
-      let offset = new BABYLON.Vector3(0, 0, 0);
-      let pickInfo = null;
-
-      console.log("move");
-      console.log(extrudedRef.current);
-      console.log(sceneRef.current);
-
-      // Function to start dragging
-      const startDrag = (event) => {
-        console.log("drage");
-        // Get the mesh that was clicked
-        var ray = sceneRef.current.createPickingRay(
-          sceneRef.current.pointerX,
-          sceneRef.current.pointerY,
-          BABYLON.Matrix.Identity()
+    switch (operation) {
+      case "draw":
+        renderingEngineRf.current.canvas.addEventListener(
+          "click",
+          handlePointerDown
         );
-        var hit = sceneRef.current.pickWithRay(ray);
-        console.log(hit.pickedMesh);
-
-        pickInfo = sceneRef.current.pick(
-          sceneRef.current.pointerX,
-          sceneRef.current.pointerY
+        renderingEngineRf.current.canvas.addEventListener(
+          "contextmenu",
+          handlePointerUp
         );
-        console.log(pickInfo.pickedMesh);
-        if (pickInfo.hit && pickInfo.pickedMesh === extrudedRef.current) {
-          isDragging = true;
-          // Calculate offset
-          offset = extrudedRef.current.position.subtract(pickInfo.pickedPoint);
-          event.preventDefault(); // Prevent default browser actions
-        }
-      };
+        break;
+      case "extrude":
+        renderingEngineRf.current.extrudeShape(ShapeController.getCurrentShapePoints());
+        break;
+      case "move":
+        // Variables for dragging
+        let isDragging = false;
+        let offset = new BABYLON.Vector3(0, 0, 0);
 
-      // Function to drag the mesh
-      const drag = (event) => {
-        console.log("mousemove");
-        if (isDragging && pickInfo) {
-          // Update the position based on mouse position
-          const newPickInfo = sceneRef.current.pick(
-            sceneRef.current.pointerX,
-            sceneRef.current.pointerY
-          );
-          if (newPickInfo.hit) {
-            extrudedRef.current.position = newPickInfo.pickedPoint.add(offset);
+        renderingEngineRf.current.scene.onPointerObservable.add((info) => {
+          switch (info.type) {
+            case BABYLON.PointerEventTypes.POINTERDOWN:
+              //("drage start");
+              let data = renderingEngineRf.current.startMovingExtrudedShape();
+              isDragging = data.isDragging;
+              offset = data.offset;
+              break;
+
+            case BABYLON.PointerEventTypes.POINTERMOVE:
+              isDragging &&
+                renderingEngineRf.current.dragExtrudedShape(isDragging, offset);
+              break;
+
+            case BABYLON.PointerEventTypes.POINTERUP:
+              isDragging = false;
+              offset = new BABYLON.Vector3(0, 0, 0);
+              break;
           }
-          event.preventDefault(); // Prevent default browser actions
-        }
-      };
+        });
 
-      // Function to stop dragging
-      const stopDrag = (event) => {
-        console.log("mouseup");
-        isDragging = false;
-        pickInfo = null;
-        reactCanvas.current.removeEventListener("mousemove", drag);
-        event.preventDefault(); // Prevent default browser actions
-      };
-      reactCanvas.current.removeEventListener("click", handlePointerDown);
-      reactCanvas.current.removeEventListener("contextmenu", handlePointerUp);
-      reactCanvas.current.addEventListener("click", (event) => {
-        console.log("drage start");
-        startDrag(event);
-      });
+        break;
+      case "edit":
+        let isEditing = false;
+        let closestVertex;
+        renderingEngineRf.current.scene.onPointerObservable.add((info) => {
+          switch (info.type) {
+            case BABYLON.PointerEventTypes.POINTERDOWN:
+              let data = renderingEngineRf.current.editPoint(ShapeController.getCurrentShapePoints());
+              isEditing = data.isEditing;
+              closestVertex = data.closestVertex;
+              break;
 
-      reactCanvas.current.addEventListener("mousemove", drag);
-      reactCanvas.current.addEventListener("contextmenu", stopDrag);
-    } else {
-    //  let ne = React.cloneElement(renderingEngineRf.current);
-    //  renderingEngineRf.current = ne;
-     return;
+            case BABYLON.PointerEventTypes.POINTERMOVE:
+              // if (isEditing) {
+              //   renderingEngineRf.current.movePoint(isEditing,closestVertex);
+              // }
+              break;
+
+            case BABYLON.PointerEventTypes.POINTERUP:
+              console.log('up')
+              renderingEngineRf.current.updateExtrudedShape();
+              isEditing = false;
+              closestVertex = undefined;
+              break;
+          }
+        });
+
+        break;
+      default:
+        return;
     }
   }, [operation]);
 

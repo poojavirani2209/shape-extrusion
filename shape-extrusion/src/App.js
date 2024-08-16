@@ -4,7 +4,7 @@ import { SceneComponent } from "./view/components/SceneComponent";
 import { OperationComponent } from "./view/components/OperationComponent";
 
 function App() {
-  let [operation, setOperation] = useState("draw");
+  let [operation, setOperation] = useState("");
   return (
     <>
       <OperationComponent setOperation={setOperation}></OperationComponent>

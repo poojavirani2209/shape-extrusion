@@ -15,7 +15,7 @@ class ShapeController {
   }
 
   getCurrentShapePoints(){
-    return ShapeModel.currentShapePoints;
+    return ShapeModel.currentShape.points;
   }
 
   finishDrawing() {
@@ -30,8 +30,8 @@ class ShapeController {
     ShapeModel.moveShape(index, offset);
   }
 
-  editVertex(index, vertexIndex, newPosition) {
-    ShapeModel.editVertex(index, vertexIndex, newPosition);
+  editVertex(vertexIndex, newPosition) {
+    ShapeModel.editVertex(vertexIndex, newPosition);
   }
 }
 

@@ -14,13 +14,14 @@ class ShapeModel {
         this.startShape(point)
       }
       this.currentShapePoints.push(point);
+      //(this.currentShapePoints);
     }
   
     finishShape() {
       if (this.currentShapePoints.length > 2) {
         this.shapes.push({ points: this.currentShapePoints, height: 1 });
         this.currentShapePoints = [];
-        console.log(this.shapes.length)
+        //(this.shapes.length)
         this.currentShape = this.shapes[this.shapes.length-1]
       }
     }

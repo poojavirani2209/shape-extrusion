@@ -50,8 +50,7 @@ export function OperationComponent({ setOperation }) {
 }
 
 function changeColor(evt, setOperation, operation) {
-    console.log(operation)
-    console.log(evt.target.style.backgroundColor)
+    //(evt.target.style.backgroundColor)
   if (evt.target.style.backgroundColor == "white") {
     evt.target.style.backgroundColor = "green";
     setOperation(operation);
