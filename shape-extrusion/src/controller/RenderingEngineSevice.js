@@ -144,19 +144,12 @@ export class RenderingEngine {
   }
 
   editPoint() {
-    const newPickInfo = this.scene.pick(
-      this.scene.pointerX,
-      this.scene.pointerY
-    );
-    let closestVertex = this.getPointClosestVertex(
-      newPickInfo.pickedPoint
-    );
-    this.addDragBox();
-    return { isEditing: true, closestVertex };
+    let vertexToBeMoved = this.addDragBox();
+    return { isEditing: true, vertexToBeMoved };
   }
 
   addDragBox() {
-   this.dragBox &&  this.dragBox.dispose();
+    this.dragBox && this.dragBox.dispose();
     var ray = this.scene.createPickingRay(
       this.scene.pointerX,
       this.scene.pointerY,
@@ -223,27 +216,44 @@ export class RenderingEngine {
       this.dragBoxMat = new BABYLON.StandardMaterial("dragBoxMat", this.scene);
       this.dragBoxMat.diffuseColor = new BABYLON.Color3(1.4, 3, 0.2);
       this.dragBox.material = this.dragBoxMat;
+
+      return boxPosition;
     }
   }
 
   movePoint(edit, closestVertex) {
     if (edit) {
-      const newPickInfo = this.scene.pick(
-        this.scene.pointerX,
-        this.scene.pointerY
-      );
-      let moveToPoint = newPickInfo.pickedPoint;
-      var diff = closestVertex.selectedVertex.subtract(moveToPoint);
-      this.dragBox.position.addInPlace(diff);
-      var vertices = this.extrudedShape.getVerticesData(
-        BABYLON.VertexBuffer.PositionKind
-      );
-      if (!vertices) {
+      if (!this.dragBox) {
         return;
       }
-      vertices[closestVertex.index] = moveToPoint.x;
-      vertices[closestVertex.index + 2] = moveToPoint.z;
-      closestVertex.selectedVertex = moveToPoint;
+      var current = this.getClickedPoint();
+      var diff = current.subtract(closestVertex);
+      this.dragBox.position.addInPlace(diff);
+
+      closestVertex = current;
+
+      var positions = this.extrudedShape.getVerticesData(
+       BABYLON. VertexBuffer.PositionKind
+      );
+      var indices = this.currentPickedMesh.getIndices();
+
+      if (!positions || !indices) {
+        return;
+      }
+
+      for (var i = 0; i < this.xIndexes.length; i++) {
+        positions[this.xIndexes[i]] = current.x;
+      }
+
+      for (var i = 0; i < this.zIndexes.length; i++) {
+        positions[this.zIndexes[i]] = current.z;
+      }
+
+      this.extrudedShape.updateVerticesData(
+        BABYLON.VertexBuffer.PositionKind,
+        positions
+      );
+      return closestVertex;
     }
   }
 
