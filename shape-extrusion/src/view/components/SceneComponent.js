@@ -104,10 +104,23 @@ export function SceneComponent({ operation }) {
           renderingEngineRf.current.scene.onPointerObservable.add((info) => {
             switch (info.type) {
               case BABYLON.PointerEventTypes.POINTERDOWN:
-                let data = renderingEngineRf.current.editPoint();
-                isEditing = data.isEditing;
-                closestVertex = data.vertexToBeMoved;
-                break;
+                if (isLeftClick(info)) {
+                  let data = renderingEngineRf.current.editPoint();
+                  isEditing = data.isEditing;
+                  closestVertex = data.vertexToBeMoved;
+                  break;
+                } else if (isRightClick(info)) {
+                  renderingEngineRf.current.camera.attachControl(
+                    renderingEngineRf.current.canvas,
+                    true
+                  );
+
+                  //reset values
+                  isEditing = false;
+                  closestVertex = undefined;
+                  renderingEngineRf.current.dragBox.dispose();
+                  break;
+                }
 
               case BABYLON.PointerEventTypes.POINTERMOVE:
                 if (isEditing) {
@@ -116,13 +129,6 @@ export function SceneComponent({ operation }) {
                     closestVertex
                   );
                 }
-                break;
-
-              case BABYLON.PointerEventTypes.POINTERUP:
-                renderingEngineRf.current.updateExtrudedShape(); //extrude shape with latest points
-                //rest values
-                isEditing = false;
-                closestVertex = undefined;
                 break;
             }
           });
