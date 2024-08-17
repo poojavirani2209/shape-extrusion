@@ -4,7 +4,7 @@ import * as BABYLON from "babylonjs";
 import { RenderingEngine } from "../../controller/RenderingEngineSevice";
 
 /**
- *
+ * Component responsible for viewing the scene and canvas where use can interact and perform provided operations.
  * @returns
  */
 export function SceneComponent({ operation }) {

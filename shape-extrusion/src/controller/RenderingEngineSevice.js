@@ -161,7 +161,7 @@ export class RenderingEngine {
   dragExtrudedShape(drag, offset) {
     if (drag) {
       // Update the position based on mouse position
-      let  pointClicked  = this.getClickedPoint();
+      let pointClicked = this.getClickedPoint();
       this.extrudedShape.position = pointClicked.add(offset);
     }
   }
@@ -185,7 +185,8 @@ export class RenderingEngine {
    * @returns {BABYLON.Vector3} The position of the drag box.
    */
   addDragBox() {
-    this.dragBox && this.dragBox.dispose();
+    this.dragBox && this.dragBox.dispose(); // Dispose of the existing drag box if it exists
+
     var ray = this.scene.createPickingRay(
       this.scene.pointerX,
       this.scene.pointerY,
@@ -202,36 +203,44 @@ export class RenderingEngine {
       this.zIndexes = [];
       this.currentPickedMesh = pickingInfo.pickedMesh;
 
-      var wMatrix = pickingInfo.pickedMesh.computeWorldMatrix(true);
-      pickingInfo.pickedMesh.isPickable = true;
-      var positions = pickingInfo.pickedMesh.getVerticesData(
-        BABYLON.VertexBuffer.PositionKind
-      );
-      var indices = pickingInfo.pickedMesh.getIndices();
+      var worldMatrix = pickingInfo.pickedMesh.computeWorldMatrix(true); // Compute the world matrix for the picked mesh
 
-      this.dragBox = BABYLON.Mesh.CreateBox("dragBox", 0.15, this.scene);
+      pickingInfo.pickedMesh.isPickable = true;
+      let { vertices, indices } = this.getVerticesDataOfMesh(
+        pickingInfo.pickedMesh
+      );
+
+      this.dragBox = BABYLON.Mesh.CreateBox("dragBox", 0.15, this.scene); // Create a new drag box mesh
+
       var vertexPoint = BABYLON.Vector3.Zero();
-      this.fidx = pickingInfo.faceId;
-      var minDist = Infinity;
-      var dist = 0;
+      this.faceIndex = pickingInfo.faceId;
+      var minDist = Infinity; // Initialize minimum distance to a large value
+      var dist = 0; // Distance between the clicked point and vertex
       var hitPoint = pickingInfo.pickedPoint;
-      var idx = 0;
+      var currentVertexIndex = 0;
       var boxPosition = BABYLON.Vector3.Zero();
-      if (!indices || !positions || !hitPoint) return;
+
+      if (!indices || !vertices || !hitPoint) return;
+
+      // Iterate through the vertices of the selected face
       for (var i = 0; i < 3; i++) {
-        idx = indices[3 * this.fidx + i];
-        vertexPoint.x = positions[3 * idx];
-        var initX = positions[3 * idx];
-        vertexPoint.y = positions[3 * idx + 1];
-        var initY = positions[3 * idx + 1];
-        vertexPoint.z = positions[3 * idx + 2];
-        var initZ = positions[3 * idx + 2];
+        currentVertexIndex = indices[3 * this.faceIndex + i];
+        vertexPoint.x = vertices[3 * currentVertexIndex];
+        var initX = vertices[3 * currentVertexIndex];
+        vertexPoint.y = vertices[3 * currentVertexIndex + 1];
+        var initY = vertices[3 * currentVertexIndex + 1];
+        vertexPoint.z = vertices[3 * currentVertexIndex + 2];
+        var initZ = vertices[3 * currentVertexIndex + 2];
+
+        // Transform the vertex position to world coordinates
         BABYLON.Vector3.TransformCoordinatesToRef(
           vertexPoint,
-          wMatrix,
+          worldMatrix,
           vertexPoint
         );
-        dist = vertexPoint.subtract(hitPoint).length();
+        dist = vertexPoint.subtract(hitPoint).length(); // Calculate the distance between the vertex and the clicked point
+
+        // Update the drag box position if this vertex is closer to the clicked point
         if (dist < minDist) {
           boxPosition = vertexPoint.clone();
           vertexPoint.x = initX;
@@ -240,11 +249,13 @@ export class RenderingEngine {
         }
       }
       this.dragBox.position = boxPosition;
-      for (var i = 0; i < positions.length; i++) {
-        if (positions[i] == vertexPoint.x) {
+
+      // Determine which positions in the mesh correspond to the X and Z coordinates of the selected vertex
+      for (var i = 0; i < vertices.length; i++) {
+        if (vertices[i] == vertexPoint.x) {
           this.xIndexes.push(i);
         }
-        if (positions[i] == vertexPoint.z) {
+        if (vertices[i] == vertexPoint.z) {
           this.zIndexes.push(i);
         }
       }
