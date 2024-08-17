@@ -119,7 +119,7 @@ export function SceneComponent({ operation }) {
                 break;
 
               case BABYLON.PointerEventTypes.POINTERUP:
-                renderingEngineRf.current.updateExtrudedShape();//extrude shape with latest points
+                renderingEngineRf.current.updateExtrudedShape(); //extrude shape with latest points
                 //rest values
                 isEditing = false;
                 closestVertex = undefined;

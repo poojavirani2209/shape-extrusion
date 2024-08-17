@@ -101,6 +101,10 @@ export class RenderingEngine {
     BABYLON.MeshBuilder.CreateLines("line", { points }, this.scene);
   }
 
+  /**
+   * Method to get the vertices where the mouse clicked inside the scene.
+   * @returns the vertices.
+   */
   getClickedPoint() {
     const pickResult = this.scene.pick(
       this.scene.pointerX,
@@ -112,6 +116,10 @@ export class RenderingEngine {
     return null;
   }
 
+  /**
+   * Converts 2D to 3D shape by the usage of meshes.
+   * @param {*} vertices vertices of the 2D shape.
+   */
   extrudeShape(vertices) {
     this.extrudedShape = BABYLON.MeshBuilder.ExtrudePolygon(
       `extruded Polygon`,
@@ -123,17 +131,21 @@ export class RenderingEngine {
         wrap: true,
       },
       this.scene,
-      earcut
+      earcut //useful for creating meshes inside the polygon
     );
 
-    this.extrudedShape.position.y = 1;
-    this.extrudedShape.convertToFlatShadedMesh();
+    this.extrudedShape.position.y = 1; //sets the vertical position of mesh as 1
+    this.extrudedShape.convertToFlatShadedMesh(); //it shows as the lightning is on the face. Helps to show the polygon more angular giving it 3D presence.
 
     const material = new BABYLON.StandardMaterial("material", this.scene);
     material.diffuseColor = new BABYLON.Color3(1, 0, 0); // Red color, set the color (using a diffuse color)
     this.extrudedShape.material = material; // Apply the material to the extruded mesh
   }
 
+  /**
+   * Method to initialize the moving of the extruded shape.
+   * @returns
+   */
   startMovingExtrudedShape() {
     let pickInfo = this.scene.pick(this.scene.pointerX, this.scene.pointerY);
     if (pickInfo.hit && pickInfo.pickedMesh === this.extrudedShape) {
@@ -143,25 +155,35 @@ export class RenderingEngine {
     }
   }
 
-  // Function to drag the mesh
+  /**
+   * Method to drag the mesh
+   */
   dragExtrudedShape(drag, offset) {
     if (drag) {
       // Update the position based on mouse position
-      const newPickInfo = this.scene.pick(
-        this.scene.pointerX,
-        this.scene.pointerY
-      );
-      if (newPickInfo.hit) {
-        this.extrudedShape.position = newPickInfo.pickedPoint.add(offset);
-      }
+      let  pointClicked  = this.getClickedPoint();
+      this.extrudedShape.position = pointClicked.add(offset);
     }
   }
 
+  /**
+   * Defines the vertex to be editable with a visual cue of deag box.
+   * @returns
+   */
   editPoint() {
     let vertexToBeMoved = this.addDragBox();
     return { isEditing: true, vertexToBeMoved };
   }
 
+  /**
+   * Creates and positions a drag box to allow the user to manipulate vertices of the mesh.
+   * Disposes of any existing drag box before creating a new one.
+   *
+   * The drag box is placed at the vertex of the selected face that is closest to the clicked point.
+   * The function calculates which vertex is the closest to the click position and updates the drag box's position accordingly.
+   *
+   * @returns {BABYLON.Vector3} The position of the drag box.
+   */
   addDragBox() {
     this.dragBox && this.dragBox.dispose();
     var ray = this.scene.createPickingRay(
@@ -235,46 +257,55 @@ export class RenderingEngine {
     }
   }
 
-  movePoint(edit, closestVertex) {
+  getVerticesDataOfMesh(mesh) {
+    var vertices = mesh.getVerticesData(BABYLON.VertexBuffer.PositionKind);
+    var indices = mesh.getIndices();
+    return { indices, vertices };
+  }
+
+  /**
+   * Move the vertex to recently mouse moved point, only in edit mode.
+   * @param {} edit
+   * @param {*} vertexToBeMoved
+   * @returns
+   */
+  movePoint(edit, vertexToBeMoved) {
     if (edit) {
       if (!this.dragBox) {
         return;
       }
-      var current = this.getClickedPoint();
-      var diff = current.subtract(closestVertex);
+      var pointClicked = this.getClickedPoint();
+      var diff = pointClicked.subtract(vertexToBeMoved);
       this.dragBox.position.addInPlace(diff);
 
-      closestVertex = current;
-
-      var positions = this.extrudedShape.getVerticesData(
-        BABYLON.VertexBuffer.PositionKind
+      let { vertices, indices } = this.getVerticesDataOfMesh(
+        this.extrudedShape
       );
-      var indices = this.currentPickedMesh.getIndices();
 
-      if (!positions || !indices) {
+      vertexToBeMoved = pointClicked;
+      if (!vertices || !indices) {
         return;
       }
 
       for (var i = 0; i < this.xIndexes.length; i++) {
-        positions[this.xIndexes[i]] = current.x;
+        vertices[this.xIndexes[i]] = pointClicked.x;
       }
 
       for (var i = 0; i < this.zIndexes.length; i++) {
-        positions[this.zIndexes[i]] = current.z;
+        vertices[this.zIndexes[i]] = pointClicked.z;
       }
 
       this.extrudedShape.updateVerticesData(
         BABYLON.VertexBuffer.PositionKind,
-        positions
+        vertices
       );
-      return closestVertex;
+      return vertexToBeMoved;
     }
   }
 
+  /** update the extruded shape based on new vertices data when the shape or vertex is moved. */
   updateExtrudedShape = () => {
-    var vertices = this.extrudedShape.getVerticesData(
-      BABYLON.VertexBuffer.PositionKind
-    );
+    let { vertices, indices } = this.getVerticesDataOfMesh(this.extrudedShape);
     const updatedPoints = [];
     for (let i = 0; i < vertices.length; i += 3) {
       updatedPoints.push(
@@ -291,30 +322,22 @@ export class RenderingEngine {
   };
 
   getPointClosestVertex(toPoint) {
-    var vertices = this.extrudedShape.getVerticesData(
-      BABYLON.VertexBuffer.PositionKind
-    );
+    let { vertices, indices } = this.getVerticesDataOfMesh(this.extrudedShape);
     let minDist = Infinity;
-    console.log(toPoint);
     let selectedVertex;
     let index;
-    console.log(vertices);
     for (let i = 0; i < vertices.length; i++) {
       const vertex = new BABYLON.Vector3(
         vertices[i],
         vertices[i + 1],
         vertices[i + 2]
       );
-      //("vertext:", vertex);
-      console.log(i);
       let distance = BABYLON.Vector3.Distance(vertex, toPoint);
       if (distance < minDist) {
-        console.log(true);
-        console.log(vertex);
+        //vertices with least distance.
         minDist = distance;
         selectedVertex = vertex;
         index = i;
-        // console.log(selectedVertex)
       }
     }
     return { index: index, selectedVertex: selectedVertex };
