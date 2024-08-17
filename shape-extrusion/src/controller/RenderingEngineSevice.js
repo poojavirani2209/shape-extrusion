@@ -281,36 +281,41 @@ export class RenderingEngine {
    * @returns
    */
   movePoint(edit, vertexToBeMoved) {
-    if (edit) {
-      if (!this.dragBox) {
-        return;
+    try {
+      if (edit) {
+        if (!this.dragBox) {
+          return;
+        }
+        var pointClicked = this.getClickedPoint();
+        var diff = pointClicked.subtract(vertexToBeMoved);
+        this.dragBox.position.addInPlace(diff);
+
+        let { vertices, indices } = this.getVerticesDataOfMesh(
+          this.extrudedShape
+        );
+
+        vertexToBeMoved = pointClicked;
+        if (!vertices || !indices) {
+          return;
+        }
+
+        for (var i = 0; i < this.xIndexes.length; i++) {
+          vertices[this.xIndexes[i]] = pointClicked.x;
+        }
+
+        for (var i = 0; i < this.zIndexes.length; i++) {
+          vertices[this.zIndexes[i]] = pointClicked.z;
+        }
+
+        this.extrudedShape.updateVerticesData(
+          BABYLON.VertexBuffer.PositionKind,
+          vertices
+        );
+        return vertexToBeMoved;
       }
-      var pointClicked = this.getClickedPoint();
-      var diff = pointClicked.subtract(vertexToBeMoved);
-      this.dragBox.position.addInPlace(diff);
-
-      let { vertices, indices } = this.getVerticesDataOfMesh(
-        this.extrudedShape
-      );
-
-      vertexToBeMoved = pointClicked;
-      if (!vertices || !indices) {
-        return;
-      }
-
-      for (var i = 0; i < this.xIndexes.length; i++) {
-        vertices[this.xIndexes[i]] = pointClicked.x;
-      }
-
-      for (var i = 0; i < this.zIndexes.length; i++) {
-        vertices[this.zIndexes[i]] = pointClicked.z;
-      }
-
-      this.extrudedShape.updateVerticesData(
-        BABYLON.VertexBuffer.PositionKind,
-        vertices
-      );
-      return vertexToBeMoved;
+    } catch (error) {
+      console.log(`Error occurred while moving the vertex`, error);
+      return;
     }
   }
 

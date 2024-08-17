@@ -57,3 +57,76 @@ This approach ensures that the application remains well-organized, scalable, and
 
 ## DEMO
 [Shape Extrusion Demo](https://www.loom.com/share/d252d5c9afa946cf8a3b41d6d0739834)
+
+
+# Getting Started with the Project
+
+Follow these steps to set up and interact with the project:
+
+## 1. Download and Extract the ZIP File
+
+1. **Download** the ZIP file containing the project from the provided link.
+2. **Extract** the contents of the ZIP file to a desired location on your computer.
+
+## 2. Open the Project in an IDE
+
+1. Open your preferred IDE (e.g., [VSCode](https://code.visualstudio.com/)).
+2. **Open** the extracted project folder in the IDE.
+
+## 3. Install Dependencies
+
+1. Open a terminal or command prompt within the IDE or navigate to the project directory.
+2. Run the following command to install the required dependencies:
+
+    ```bash
+    npm install
+    ```
+
+## 4. Start the Development Server
+
+1. After the installation is complete, start the development server with:
+
+    ```bash
+    npm run start
+    ```
+
+2. This will launch the React application and automatically open it in your default web browser. If it doesn’t open automatically, you can manually navigate to `http://localhost:3000`.
+
+## 5. Interact with the Application
+
+### Drawing Shapes
+
+1. **Click** the **"Draw"** button. The button will turn green, indicating that the drawing mode is active.
+2. **Draw** on the ground plane by clicking to set vertices. The shape will be drawn in real-time.
+3. **Right-click** to finish the drawing. If the shape is not a closed loop, it will be automatically closed.
+4. **Click** the **"Draw"** button again to exit the drawing mode. The button will return to its original color.
+
+### Extruding Shapes
+
+1. **Click** the **"Extrude"** button. The button will turn green, and the shape you drew will be extruded into 3D.
+2. **Click** the **"Extrude"** button again to exit the extruding mode. The button will return to its original color.
+
+### Moving Shapes
+
+1. **Click** the **"Move"** button. The button will turn green, indicating that the move mode is active.
+2. **Click and drag** the extruded shape to move it in any direction.
+3. **Click** the **"Move"** button again to exit the move mode. The button will return to its original color.
+
+### Editing Vertices
+
+1. **Click** the **"Edit"** button. The button will turn green, indicating that the edit mode is active.
+2. **Left-click** on any vertex of the extruded shape. Drag the mouse to move the vertex.
+3. **Right-click** to stop editing the vertex. The button will return to its original color.
+
+## Troubleshooting
+
+- **If the application doesn’t start**: Ensure that all dependencies are correctly installed and that there are no errors in the terminal.
+- **If the browser doesn’t open automatically**: Manually navigate to `http://localhost:3000` in your web browser.
+
+## License
+
+This project is licensed under the [MIT License](./LICENSE).
+
+## Contributing
+
+If you want to contribute to this project, please refer to the [CONTRIBUTING.md](./CONTRIBUTING.md) file for guidelines.
