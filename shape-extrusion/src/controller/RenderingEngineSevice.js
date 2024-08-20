@@ -18,6 +18,7 @@ export class RenderingEngine {
   advancedTexture;
   xIndexes;
   zIndexes;
+  vertexMarkers;
 
   constructor() {
     //initialize parameters of rendering engine.
@@ -27,6 +28,7 @@ export class RenderingEngine {
     this.extrudedShape = null;
     this.dragBox = null;
     this.advancedTexture = null;
+    this.vertexMarkers = [];
   }
 
   /** Method to create a 3D scene with a plane ground.  */
@@ -111,6 +113,9 @@ export class RenderingEngine {
       this.scene.pointerY
     );
     if (pickResult.hit) {
+      if (pickResult.pickedPoint.y < 0) {
+        pickResult.pickedPoint.y = 0;
+      }
       return pickResult.pickedPoint;
     }
     return null;
@@ -171,8 +176,14 @@ export class RenderingEngine {
    * @returns
    */
   editPoint() {
-    let vertexToBeMoved = this.addDragBox();
-    return { isEditing: true, vertexToBeMoved };
+    let pointerInfo = this.scene.pick(this.scene.pointerX, this.scene.pointerY);
+    let vertexToBeMoved;
+    if (pointerInfo.hit) {
+      vertexToBeMoved = pointerInfo.pickedPoint;
+      return { isEditing: true, vertexToBeMoved };
+    }
+    return { isEditing: false, vertexToBeMoved: undefined };
+    // let vertexToBeMoved = this.addDragBox();
   }
 
   /**
@@ -186,7 +197,6 @@ export class RenderingEngine {
    */
   addDragBox() {
     this.dragBox && this.dragBox.dispose(); // Dispose of the existing drag box if it exists
-
     var ray = this.scene.createPickingRay(
       this.scene.pointerX,
       this.scene.pointerY,
@@ -201,7 +211,6 @@ export class RenderingEngine {
     ) {
       this.xIndexes = [];
       this.zIndexes = [];
-      this.currentPickedMesh = pickingInfo.pickedMesh;
 
       var worldMatrix = pickingInfo.pickedMesh.computeWorldMatrix(true); // Compute the world matrix for the picked mesh
 
@@ -210,9 +219,10 @@ export class RenderingEngine {
         pickingInfo.pickedMesh
       );
 
-      this.dragBox = BABYLON.Mesh.CreateBox("dragBox", 0.15, this.scene); // Create a new drag box mesh
+      this.dragBox = BABYLON.Mesh.CreateBox("dragBox", 0.1, this.scene); // Create a new drag box mesh
 
       var vertexPoint = BABYLON.Vector3.Zero();
+      // let faceIndexes = this.getFaceIds(pickingInfo.pickedMesh)
       this.faceIndex = pickingInfo.faceId;
       var minDist = Infinity; // Initialize minimum distance to a large value
       var dist = 0; // Distance between the clicked point and vertex
@@ -248,6 +258,7 @@ export class RenderingEngine {
           minDist = dist;
         }
       }
+
       this.dragBox.position = boxPosition;
 
       // Determine which positions in the mesh correspond to the X and Z coordinates of the selected vertex
@@ -259,19 +270,13 @@ export class RenderingEngine {
           this.zIndexes.push(i);
         }
       }
-
-      this.dragBoxMat = new BABYLON.StandardMaterial("dragBoxMat", this.scene);
-      this.dragBoxMat.diffuseColor = new BABYLON.Color3(1.4, 3, 0.2);
-      this.dragBox.material = this.dragBoxMat;
-
-      return boxPosition;
     }
   }
 
   getVerticesDataOfMesh(mesh) {
     var vertices = mesh.getVerticesData(BABYLON.VertexBuffer.PositionKind);
     var indices = mesh.getIndices();
-    return { indices, vertices };
+    return { vertices, indices };
   }
 
   /**
@@ -280,82 +285,46 @@ export class RenderingEngine {
    * @param {*} vertexToBeMoved
    * @returns
    */
-  movePoint(edit, vertexToBeMoved) {
+  movePoint(vertexToBeMoved) {
     try {
-      if (edit) {
-        if (!this.dragBox) {
-          return;
-        }
-        var pointClicked = this.getClickedPoint();
-        var diff = pointClicked.subtract(vertexToBeMoved);
-        this.dragBox.position.addInPlace(diff);
-
-        let { vertices, indices } = this.getVerticesDataOfMesh(
-          this.extrudedShape
-        );
-
-        vertexToBeMoved = pointClicked;
-        if (!vertices || !indices) {
-          return;
-        }
-
-        for (var i = 0; i < this.xIndexes.length; i++) {
-          vertices[this.xIndexes[i]] = pointClicked.x;
-        }
-
-        for (var i = 0; i < this.zIndexes.length; i++) {
-          vertices[this.zIndexes[i]] = pointClicked.z;
-        }
-
-        this.extrudedShape.updateVerticesData(
-          BABYLON.VertexBuffer.PositionKind,
-          vertices
-        );
-        return vertexToBeMoved;
+      if (!vertexToBeMoved) {
+        return;
       }
+      var currentPoint = this.getClickedPoint();
+      var displacement = currentPoint.subtract(vertexToBeMoved);
+      this.dragBox.position.addInPlace(displacement);
+
+      vertexToBeMoved.position = currentPoint;
+
+      this.updateExtrudedShapeVertices(currentPoint);
+      return vertexToBeMoved;
     } catch (error) {
       console.log(`Error occurred while moving the vertex`, error);
       return;
     }
   }
 
-  /** update the extruded shape based on new vertices data when the shape or vertex is moved. */
-  updateExtrudedShape = () => {
-    let { vertices, indices } = this.getVerticesDataOfMesh(this.extrudedShape);
-    const updatedPoints = [];
-    for (let i = 0; i < vertices.length; i += 3) {
-      updatedPoints.push(
-        new BABYLON.Vector3(vertices[i], vertices[i + 1], vertices[i + 2])
-      );
-    }
-    if (this.extrudedShape) {
-      this.extrudedShape.dispose(); // Remove old shape
+  updateExtrudedShapeVertices(currentPoint) {
+    let { vertices } = this.getVerticesDataOfMesh(this.extrudedShape);
+
+    for (var i = 0; i < this.xIndexes.length; i++) {
+      vertices[this.xIndexes[i]] = currentPoint.x;
     }
 
-    if (updatedPoints.length > 2) {
-      this.extrudeShape(updatedPoints);
+    for (var i = 0; i < this.zIndexes.length; i++) {
+      vertices[this.zIndexes[i]] = currentPoint.z;
     }
-  };
 
-  getPointClosestVertex(toPoint) {
-    let { vertices, indices } = this.getVerticesDataOfMesh(this.extrudedShape);
-    let minDist = Infinity;
-    let selectedVertex;
-    let index;
-    for (let i = 0; i < vertices.length; i++) {
-      const vertex = new BABYLON.Vector3(
-        vertices[i],
-        vertices[i + 1],
-        vertices[i + 2]
-      );
-      let distance = BABYLON.Vector3.Distance(vertex, toPoint);
-      if (distance < minDist) {
-        //vertices with least distance.
-        minDist = distance;
-        selectedVertex = vertex;
-        index = i;
-      }
+    this.extrudedShape.updateVerticesData(
+      BABYLON.VertexBuffer.PositionKind,
+      vertices
+    );
+  }
+
+  disposeDragBox() {
+    if (this.dragBox) {
+      this.dragBox.dispose();
+      this.dragBox = null;
     }
-    return { index: index, selectedVertex: selectedVertex };
   }
 }
