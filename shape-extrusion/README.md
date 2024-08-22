@@ -58,6 +58,8 @@ This approach ensures that the application remains well-organized, scalable, and
 ## DEMO
 [Shape Extrusion Demo](https://www.loom.com/share/ae78b6f1411d43b0908cf1769f28f380)
 
+[Shape extrusion showing vertices are editable, once move create lines with new vertices](https://www.loom.com/share/342b9aa8a86748f982b7350ca45a7d8e)
+[Showing extrusion with new vertices](https://www.loom.com/share/7d73ccda929f440db78946c4de8f5cb6)
 
 # Getting Started with the Project
 
