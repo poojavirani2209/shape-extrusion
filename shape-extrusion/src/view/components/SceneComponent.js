@@ -101,6 +101,7 @@ export function SceneComponent({ operation }) {
           // Variables for vertex editing
           let isEditing = false;
           let vertexToBeMoved;
+          let offset;
 
           renderingEngineRf.current.scene.onPointerObservable.add((info) => {
             switch (info.type) {
@@ -109,6 +110,7 @@ export function SceneComponent({ operation }) {
                   let data = renderingEngineRf.current.editPoint();
                   isEditing = data.isEditing;
                   vertexToBeMoved = data.vertexToBeMoved;
+                  offset = data.offset;
                   break;
                 } else if (isRightClick(info)) {
                   renderingEngineRf.current.addDragBox();
@@ -117,16 +119,23 @@ export function SceneComponent({ operation }) {
 
               case BABYLON.PointerEventTypes.POINTERMOVE:
                 if (isEditing && vertexToBeMoved) {
-                  vertexToBeMoved =
-                    renderingEngineRf.current.movePoint(vertexToBeMoved);
+                  vertexToBeMoved = renderingEngineRf.current.movePoint(
+                    vertexToBeMoved,
+                    offset
+                  );
                 }
                 break;
 
               case BABYLON.PointerEventTypes.POINTERUP:
                 if (isEditing) {
+                  let vertices =
+                    renderingEngineRf.current.getUpdatedVerticesData();
+                  renderingEngineRf.current.disposeExtrudedShape();
+
+                  // renderingEngineRf.current.createLines(vertices, true);
+                  renderingEngineRf.current.rebuildExtrudedShape(vertices);
                   isEditing = false;
                   vertexToBeMoved = undefined;
-                  console.log(false)
                   renderingEngineRf.current.disposeDragBox();
                 }
             }

@@ -154,6 +154,7 @@ export class RenderingEngine {
   startMovingExtrudedShape() {
     let pickInfo = this.scene.pick(this.scene.pointerX, this.scene.pointerY);
     if (pickInfo.hit && pickInfo.pickedMesh === this.extrudedShape) {
+      console.log("dragg");
       // Calculate offset
       let offset = this.extrudedShape.position.subtract(pickInfo.pickedPoint);
       return { isDragging: true, offset };
@@ -177,10 +178,40 @@ export class RenderingEngine {
    */
   editPoint() {
     let pointerInfo = this.scene.pick(this.scene.pointerX, this.scene.pointerY);
+    this.extrudedShapeVertices = this.getVerticesDataOfMesh(
+      this.extrudedShape
+    ).vertices;
+    let minDist = Infinity;
+    let closestIndex = -1;
+    let offset;
+
     let vertexToBeMoved;
     if (pointerInfo.hit) {
-      vertexToBeMoved = pointerInfo.pickedPoint;
-      return { isEditing: true, vertexToBeMoved };
+      for (let i = 0; i < this.extrudedShapeVertices.length / 3; i++) {
+        let vertex = new BABYLON.Vector3(
+          this.extrudedShapeVertices[i * 3],
+          this.extrudedShapeVertices[i * 3 + 1],
+          this.extrudedShapeVertices[i * 3 + 2]
+        );
+
+        let dist = BABYLON.Vector3.Distance(pointerInfo.pickedPoint, vertex);
+        if (dist < minDist) {
+          minDist = dist;
+          closestIndex = i;
+        }
+      }
+      console.log(minDist);
+      if (minDist < 1.5) {
+        vertexToBeMoved = closestIndex;
+        offset = pointerInfo.pickedPoint.subtract(
+          new BABYLON.Vector3(
+            this.extrudedShapeVertices[vertexToBeMoved * 3],
+            this.extrudedShapeVertices[vertexToBeMoved * 3 + 1],
+            this.extrudedShapeVertices[vertexToBeMoved * 3 + 2]
+          )
+        );
+      }
+      return { isEditing: true, vertexToBeMoved, offset };
     }
     return { isEditing: false, vertexToBeMoved: undefined };
     // let vertexToBeMoved = this.addDragBox();
@@ -285,18 +316,19 @@ export class RenderingEngine {
    * @param {*} vertexToBeMoved
    * @returns
    */
-  movePoint(vertexToBeMoved) {
+  movePoint(vertexToBeMoved, offset) {
+    console.log("move");
     try {
       if (!vertexToBeMoved) {
         return;
       }
-      var currentPoint = this.getClickedPoint();
-      var displacement = currentPoint.subtract(vertexToBeMoved);
-      this.dragBox.position.addInPlace(displacement);
-
-      vertexToBeMoved.position = currentPoint;
-
-      this.updateExtrudedShapeVertices(currentPoint);
+      let pickedResult = this.scene.pick(
+        this.scene.pointerX,
+        this.scene.pointerY
+      );
+      var currentPoint = pickedResult.pickedPoint;
+      let newVertexPosition = currentPoint.add(offset);
+      this.updateVertexData(vertexToBeMoved, newVertexPosition);
       return vertexToBeMoved;
     } catch (error) {
       console.log(`Error occurred while moving the vertex`, error);
@@ -304,27 +336,83 @@ export class RenderingEngine {
     }
   }
 
-  updateExtrudedShapeVertices(currentPoint) {
-    let { vertices } = this.getVerticesDataOfMesh(this.extrudedShape);
-
-    for (var i = 0; i < this.xIndexes.length; i++) {
-      vertices[this.xIndexes[i]] = currentPoint.x;
-    }
-
-    for (var i = 0; i < this.zIndexes.length; i++) {
-      vertices[this.zIndexes[i]] = currentPoint.z;
-    }
-
-    this.extrudedShape.updateVerticesData(
-      BABYLON.VertexBuffer.PositionKind,
-      vertices
+  rebuildExtrudedShape(vertices) {
+    this.extrudedShape.dispose(); // Dispose of the old mesh
+    this.extrudedShape = BABYLON.MeshBuilder.ExtrudePolygon(
+      `extruded Polygon`,
+      {
+        shape: vertices,
+        depth: 1,
+        sideOrientation: BABYLON.Mesh.DOUBLESIDE,
+        updatable: true,
+        wrap: true,
+      },
+      this.scene,
+      earcut
     );
+
+    this.extrudedShape.position.y = 1 / 2; // Restore the vertical position
+    this.extrudedShape.convertToFlatShadedMesh(); // Reapply the shading
+    const material = new BABYLON.StandardMaterial("material", this.scene);
+    material.diffuseColor = new BABYLON.Color3(1, 0, 0); // Red color, set the color (using a diffuse color)
+    this.extrudedShape.material = material; // Apply the material to the extruded mesh
+  }
+
+  /**
+   * Method to update the vertex data of extruded shape at a particular index
+   * @param {*} index 
+   * @param {*} newPosition 
+   */
+  updateVertexData(index, newPosition) {
+    const vertices = this.extrudedShape.getVerticesData(
+      BABYLON.VertexBuffer.PositionKind
+    );
+    if (vertices) {
+      vertices[index * 3] = newPosition.x;
+      vertices[index * 3 + 1] = newPosition.y;
+      vertices[index * 3 + 2] = newPosition.z;
+
+      this.extrudedShape.updateVerticesData(
+        BABYLON.VertexBuffer.PositionKind,
+        vertices
+      );
+      this.extrudedShape.refreshBoundingInfo();
+      this.extrudedShape.computeWorldMatrix(true);
+    }
+  }
+
+  /**
+   * Method to get latest vertices data of extruded shape in vector format
+   * @returns 
+   */
+  getUpdatedVerticesData() {
+    const vertices = this.extrudedShape.getVerticesData(
+      BABYLON.VertexBuffer.PositionKind
+    );
+    const updatedVertices = [];
+
+    for (let i = 0; i < vertices.length / 3; i++) {
+      updatedVertices.push(
+        new BABYLON.Vector3(
+          vertices[i * 3],
+          vertices[i * 3 + 1],
+          vertices[i * 3 + 2]
+        )
+      );
+    }
+    return updatedVertices;
   }
 
   disposeDragBox() {
     if (this.dragBox) {
       this.dragBox.dispose();
       this.dragBox = null;
+    }
+  }
+
+  disposeExtrudedShape() {
+    if (this.extrudedShape) {
+      this.extrudedShape.dispose();
     }
   }
 }
